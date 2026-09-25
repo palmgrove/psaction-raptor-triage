@@ -30,7 +30,7 @@ jobs:
       - name: show markers
         run: |
           echo "--- markers ---"
-          for f in a_marker.txt b_marker.txt pr_marker.txt; do
+          for f in a_marker.txt b_marker.txt /home/runner/raptor_host_marker.txt pr_marker.txt; do
             echo "== $f =="
             cat $f 2>/dev/null || echo "(missing)"
           done
