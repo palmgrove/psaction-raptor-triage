@@ -1,0 +1,33 @@
+name: raptor-pr-chain
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  chain:
+    name: head_ref to action eval
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+      - name: Create a branch (mirrors tweeter-public create-branch.yml)
+        uses: planetscale/create-branch-action@allow-duplicates
+        continue-on-error: true
+        with:
+          org_name: "poc-org"
+          database_name: "pocdb"
+          branch_name: ${{ github.head_ref }}
+          check_exists: true
+          from: main
+      - name: run-step sink (mirrors tweeter-public create-branch.yml line 61)
+        run: |
+          echo "branch: ${{ github.head_ref }}" >> .pscale.yml
+      - name: head_ref context evidence
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          echo "head_ref literal: $HEAD_REF"
+      - name: show marker PR
+        run: |
+          echo "--- pr_marker.txt ---"
+          cat pr_marker.txt || echo "NO PR MARKER"
