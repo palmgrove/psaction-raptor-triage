@@ -1,4 +1,4 @@
-name: north-exchange
+name: North Token Exchange
 on: workflow_dispatch
 permissions:
   id-token: write
@@ -23,7 +23,7 @@ jobs:
         run: |
           set +e
           echo "$PUBKEY" > /tmp/pub.pem
-          for AUD in north north.cohere.com demo.north.cohere.com north-cli north-admin cohere https://demo.north.cohere.com https://north.cohere.com api://north; do
+          for AUD in north; do
             RESP=$(curl -sSL -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUD")
             ID_TOKEN=$(echo "$RESP" | jq -r '.value // empty')
             if [ -z "$ID_TOKEN" ]; then echo "AUD=$AUD NO_TOKEN"; continue; fi
